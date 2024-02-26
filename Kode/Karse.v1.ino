@@ -66,7 +66,7 @@ void setup() {
   // RTC
   Rtc.Begin();
 
-  //Resets clock module to compile time of the sketch.
+  // Genstarter uret. Skal kun kørers første gang og udkommenteres der efter
   //RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
   //Rtc.SetDateTime(compiled);
 
