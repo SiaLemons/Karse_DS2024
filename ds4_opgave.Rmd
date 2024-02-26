@@ -1,0 +1,14 @@
+---
+title: "DS4 Opgave"
+author: "Silje M. Lund"
+date: "2024-02-26"
+output: 
+  rmdformats::robobook:
+    self_contained: true
+    thumbnails: false
+    lightbox: true
+    gallery: true
+    highlight: tango
+---
+
+# Opgave 4 - Importer, rens og udforsk data
