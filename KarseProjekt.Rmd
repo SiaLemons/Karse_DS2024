@@ -1,0 +1,135 @@
+---
+title: "Data Science - Karse projekt"
+author: "Silje M. Lund og Regitze C. Skibsted"
+date: "2024-02-26"
+output: 
+  rmdformats::robobook:
+    self_contained: true
+    thumbnails: false
+    lightbox: true
+    gallery: true
+    highlight: tango
+---
+
+# Todo
+
+-   link til github
+-   billede af opstilling
+-   version i bunden
+-   Højeste karse i hvert forsøg
+-   arduino kode
+-   billeder i github
+-   En masse lækker tekst
+
+
+# Projektdefinering
+
+Dette projekt er lavet i forbindelse med kurset `Data Science` og omhandler dataopsamling, exploratory data analyse og data kommunikation.
+
+## Basal informationer
+
+Her findes informationerne omkring gruppen der har lavet dette projekt
+
+```{r}
+#Gruppemedlemmer: Regitze og Silje
+#Studieretning: Biologi
+#Alias: Regilje
+```
+
+# Projekt
+
+## Opsætning af data
+
+### Libraries
+
+```{r message=FALSE}
+library(tidyverse)
+library(lubridate)
+library(plotly)
+```
+
+### Indlæs data
+
+```{r}
+d <- read_delim("Data/KARSELOG.TXT", delim = "\t")
+```
+
+### Rå data
+
+```{r}
+head(d) ## Viser første 6 rækker
+tail(d) ## Viser de sidste 6 rækker
+glimpse(d) ## Fortæller om kolloner og antal rækker
+```
+
+### Rens data
+
+```{r}
+dc <- d %>%
+  filter(DatoTid != "Dato")
+
+dc$DatoTid <- as.POSIXct(dc$DatoTid, format="%Y-%m-%dT%H:%M:%OS", tz = "UTC")
+
+dc <- dc[-(1:14),]
+
+head(dc) ## Viser første 6 rækker
+tail(dc) ## Viser de sidste 6 rækker
+glimpse(dc) ## Fortæller om kolloner og antal rækker
+```
+
+## Filter og formater data
+
+```{r}
+ggplot(dc, aes(x = DatoTid, y = Afstand)) +
+  geom_point()
+```
+
+```{r}
+rep_numbers <- rep(1:180, 10000)
+
+dcf <- dc %>% 
+  filter(Afstand < 135) %>% 
+  mutate(indeks = rep_numbers[1:length(Afstand)]) %>%
+  filter(indeks == 1) %>%
+  filter(between(x = DatoTid, 
+                 left = as.POSIXct("2024-02-27 21:27:34"), 
+                 right = as.POSIXct("2024-03-05 13:49:39"))) %>%
+  mutate(Vækst = max(Afstand) - Afstand) %>%
+  select(-Afstand, -indeks)
+```
+
+```{r}
+dcfl <- pivot_longer(data = dcf, 
+                     cols = c("Vækst", "Lys", "Luftfugtighed", "Temperatur"),
+                     names_to = "variable",
+                     values_to = "value")
+```
+
+```{r}
+head(dcfl)
+```
+
+```{r}
+test <- ggplot(dcfl, aes(x = DatoTid, y = value, color = variable)) +
+  geom_line() +
+  facet_wrap(~variable, scales = "free_y", ncol = 1)
+
+ggplotly(test)
+```
+
+```{r}
+dage <- dcf[(1:100),]
+
+test <- ggplot(dage, aes(x = DatoTid, y = Vækst))+
+  geom_line()
+```
+
+# Arduino kode
+
+[GitHub](https://github.com/SiaLemons/Karse_DS2024)
+
+# Informations om versioner
+
+```{r}
+sessionInfo()
+```
