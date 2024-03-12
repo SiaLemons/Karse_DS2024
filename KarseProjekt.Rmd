@@ -13,7 +13,6 @@ output:
 
 # Todo
 
--   link til github
 -   billede af opstilling
 -   Højeste karse i hvert forsøg
 -   arduino kode
@@ -53,11 +52,37 @@ library(plotly)
 ### Indlæs data
 #### Karse naturligt lys
 ```{r}
+Karse_N <- read_delim(file = "data/KARSELOG.TXT", delim = "\t") %>% 
+  filter(DatoTid != "Dato")
+
+
+Karse_N <- Karse_N %>% 
+  filter(DatoTid != "2000-00-00T00:00:00") %>% 
+  mutate(Eksperiment = "Karse normal",
+         DatoTid = ymd_hms(DatoTid),
+         Dato_min = round_date(DatoTid, unit = "5 mins"),
+         Vækst = max(Afstand) - Afstand,
+         Lys_pct = (Lys - min(Lys))/(max(Lys) - min(Lys))*100) %>% 
+  select(Dato_min, Temperatur, Vækst, Lys_pct, Eksperiment) %>% 
+  pivot_longer(cols = c(Temperatur, Vækst, Lys_pct)) %>% 
+  group_by(Dato_min, name, Eksperiment) %>% 
+  summarise(mean = mean(value)) %>% 
+  ungroup() %>% 
+  mutate(delta_tid = Dato_min - ymd_hms("2024-02-27 21:27:34"))
+```
+
+
+
+
+
+
+
+
+```{r warning=FALSE}
 Karse_N <- read_delim("Data/KARSELOG.TXT", delim = "\t")
 Karse_N <- Karse_N %>%
   filter(DatoTid != "Dato")
 Karse_N$DatoTid <- as.POSIXct(Karse_N$DatoTid, format="%Y-%m-%dT%H:%M:%OS", tz = "UTC")
-Karse_N <- Karse_N[-(1:14),]
 
 rep_numbers <- rep(1:180, 10000)
 
@@ -77,12 +102,11 @@ Karse_N <- pivot_longer(data = Karse_N,
 head(Karse_N)
 ```
 #### Karse i mørke
-```{r}
+```{r warning=FALSE}
 Karse_M <- read_delim("Data/KARSELOG_M.TXT", delim = "\t")
 Karse_M <- Karse_M %>%
   filter(DatoTid != "Dato")
 Karse_M$DatoTid <- as.POSIXct(Karse_M$DatoTid, format="%Y-%m-%dT%H:%M:%OS", tz = "UTC")
-Karse_M <- Karse_M[-(1:14),]
 
 rep_numbers <- rep(1:180, 10000)
 
@@ -91,8 +115,8 @@ Karse_M <- Karse_M %>%
   mutate(indeks = rep_numbers[1:length(Afstand)]) %>%
   filter(indeks == 1) %>%
   filter(between(x = DatoTid, 
-                 left = as.POSIXct("2024-02-27 21:27:34"), 
-                 right = as.POSIXct("2024-03-05 13:49:39"))) %>%
+                 left = as.POSIXct("2024-03-06 22:12:01"), 
+                 right = as.POSIXct("2024-03-11 07:38:25"))) %>%
   mutate(Vækst = max(Afstand) - Afstand) %>%
   select(-Afstand, -indeks)
 Karse_M <- pivot_longer(data = Karse_M, 
@@ -102,84 +126,28 @@ Karse_M <- pivot_longer(data = Karse_M,
 head(Karse_M)
 ```
 
-
 #### Karse i kunstiglys
 ```{r}
-Karse_M <- read_delim("Data/KARSELOG_M.TXT", delim = "\t")
+#Karse_M <- read_delim("Data/KARSELOG_M.TXT", delim = "\t")
 ```
 
-
-
-
-### Rå data
-
+## Kombiner data
 ```{r}
-head(d) ## Viser første 6 rækker
-tail(d) ## Viser de sidste 6 rækker
-glimpse(d) ## Fortæller om kolloner og antal rækker
+d <- rbind.data.frame(Karse_N, Karse_M)
 ```
 
-### Rens data
 
-```{r}
-dc <- d %>%
-  filter(DatoTid != "Dato")
 
-dc$DatoTid <- as.POSIXct(dc$DatoTid, format="%Y-%m-%dT%H:%M:%OS", tz = "UTC")
 
-dc <- dc[-(1:14),]
 
-head(dc) ## Viser første 6 rækker
-tail(dc) ## Viser de sidste 6 rækker
-glimpse(dc) ## Fortæller om kolloner og antal rækker
-```
 
-## Filter og formater data
 
-```{r}
-ggplot(dc, aes(x = DatoTid, y = Afstand)) +
-  geom_point()
-```
 
-```{r}
-rep_numbers <- rep(1:180, 10000)
 
-dcf <- dc %>% 
-  filter(Afstand < 135) %>% 
-  mutate(indeks = rep_numbers[1:length(Afstand)]) %>%
-  filter(indeks == 1) %>%
-  filter(between(x = DatoTid, 
-                 left = as.POSIXct("2024-02-27 21:27:34"), 
-                 right = as.POSIXct("2024-03-05 13:49:39"))) %>%
-  mutate(Vækst = max(Afstand) - Afstand) %>%
-  select(-Afstand, -indeks)
-```
 
-```{r}
-dcfl <- pivot_longer(data = dcf, 
-                     cols = c("Vækst", "Lys", "Luftfugtighed", "Temperatur"),
-                     names_to = "variable",
-                     values_to = "value")
-```
 
-```{r}
-head(dcfl)
-```
 
-```{r}
-test <- ggplot(dcfl, aes(x = DatoTid, y = value, color = variable)) +
-  geom_line() +
-  facet_wrap(~variable, scales = "free_y", ncol = 1)
 
-ggplotly(test)
-```
-
-```{r}
-dage <- dcf[(1:100),]
-
-test <- ggplot(dage, aes(x = DatoTid, y = Vækst))+
-  geom_line()
-```
 
 # Arduino kode
 
