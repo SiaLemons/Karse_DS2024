@@ -46,6 +46,7 @@ Her findes informationerne omkring gruppen der har lavet dette projekt
 ```{r message=FALSE}
 library(tidyverse)
 library(lubridate)
+library(moderndive)
 library(plotly)
 ```
 
@@ -53,8 +54,8 @@ library(plotly)
 #### Karse naturligt lys
 ```{r}
 Karse_N <- read_delim(file = "data/KARSELOG.TXT", delim = "\t") %>% 
-  filter(DatoTid != "Dato")
-
+  filter(DatoTid != "Dato") %>% 
+  filter(Afstand < 135)
 
 Karse_N <- Karse_N %>% 
   filter(DatoTid != "2000-00-00T00:00:00") %>% 
@@ -68,61 +69,28 @@ Karse_N <- Karse_N %>%
   group_by(Dato_min, name, Eksperiment) %>% 
   summarise(mean = mean(value)) %>% 
   ungroup() %>% 
-  mutate(delta_tid = Dato_min - ymd_hms("2024-02-27 21:27:34"))
+  mutate(delta_tid = Dato_min - ymd_hms("2024-02-27 21:30:00"))
 ```
 
-
-
-
-
-
-
-
-```{r warning=FALSE}
-Karse_N <- read_delim("Data/KARSELOG.TXT", delim = "\t")
-Karse_N <- Karse_N %>%
-  filter(DatoTid != "Dato")
-Karse_N$DatoTid <- as.POSIXct(Karse_N$DatoTid, format="%Y-%m-%dT%H:%M:%OS", tz = "UTC")
-
-rep_numbers <- rep(1:180, 10000)
-
-Karse_N <- Karse_N %>% 
-  filter(Afstand < 135) %>% 
-  mutate(indeks = rep_numbers[1:length(Afstand)]) %>%
-  filter(indeks == 1) %>%
-  filter(between(x = DatoTid, 
-                 left = as.POSIXct("2024-02-27 21:27:34"), 
-                 right = as.POSIXct("2024-03-05 13:49:39"))) %>%
-  mutate(Vækst = max(Afstand) - Afstand) %>%
-  select(-Afstand, -indeks)
-Karse_N <- pivot_longer(data = Karse_N, 
-                     cols = c("Vækst", "Lys", "Luftfugtighed", "Temperatur"),
-                     names_to = "variable",
-                     values_to = "value")
-head(Karse_N)
-```
 #### Karse i mørke
 ```{r warning=FALSE}
-Karse_M <- read_delim("Data/KARSELOG_M.TXT", delim = "\t")
-Karse_M <- Karse_M %>%
+Karse_M <- read_delim(file = "data/KARSELOG_M.TXT", delim = "\t") %>% 
   filter(DatoTid != "Dato")
-Karse_M$DatoTid <- as.POSIXct(Karse_M$DatoTid, format="%Y-%m-%dT%H:%M:%OS", tz = "UTC")
-
-rep_numbers <- rep(1:180, 10000)
 
 Karse_M <- Karse_M %>% 
-  filter(Afstand < 135) %>% 
-  mutate(indeks = rep_numbers[1:length(Afstand)]) %>%
-  filter(indeks == 1) %>%
-  filter(between(x = DatoTid, 
-                 left = as.POSIXct("2024-03-06 22:12:01"), 
-                 right = as.POSIXct("2024-03-11 07:38:25"))) %>%
-  mutate(Vækst = max(Afstand) - Afstand) %>%
-  select(-Afstand, -indeks)
-Karse_M <- pivot_longer(data = Karse_M, 
-                     cols = c("Vækst", "Lys", "Luftfugtighed", "Temperatur"),
-                     names_to = "variable",
-                     values_to = "value")
+  filter(DatoTid > "2024-03-05T14:05:00") %>% 
+  mutate(Eksperiment = "Karse mørke",
+         DatoTid = ymd_hms(DatoTid),
+         Dato_min = round_date(DatoTid, unit = "5 mins"),
+         Vækst = max(Afstand) - Afstand,
+         Lys_pct = (Lys - min(Lys))/(max(Lys) - min(Lys))*100) %>% 
+  select(Dato_min, Temperatur, Vækst, Lys_pct, Eksperiment) %>% 
+  pivot_longer(cols = c(Temperatur, Vækst, Lys_pct)) %>% 
+  group_by(Dato_min, name, Eksperiment) %>% 
+  summarise(mean = mean(value)) %>% 
+  ungroup() %>% 
+  mutate(delta_tid = Dato_min - ymd_hms("2024-03-06 09:25:00"))
+
 head(Karse_M)
 ```
 
@@ -133,17 +101,69 @@ head(Karse_M)
 
 ## Kombiner data
 ```{r}
-d <- rbind.data.frame(Karse_N, Karse_M)
+d <- rbind.data.frame(Karse_N, Karse_M) %>% 
+  mutate(delta_tid = as.numeric(delta_tid)/3600)
 ```
 
 
+## Tema valg
 
 
+## Overbliks
+```{r}
+ggplot(d, aes(x = delta_tid, y = mean, color = Eksperiment)) +
+  geom_point() +
+  facet_wrap(~name, scales = "free_y")
+```
 
+## Lineær regression
+### Ved brug af ggplot
 
+```{r}
+dw <- d %>% 
+  pivot_wider(names_from = name, values_from = mean)
 
+dw_subset <- dw %>% 
+  filter(!(Eksperiment == "Karse normal" & (delta_tid < 66 | delta_tid > 90))) %>%
+  filter(!(Eksperiment == "Karse mørke" & (delta_tid < 66 | delta_tid > 90)))
 
+p <- ggplot(dw, aes(x = delta_tid, y = Vækst, group = Eksperiment, color = Eksperiment)) +
+  geom_point() +
+  geom_smooth(data = dw_subset, method = "lm", color = "black", linewidth = 1, se = F) +
+  facet_wrap(~Eksperiment, ncol = 1)
 
+p
+```
+
+### Ved brug af `lm()`
+
+```{r}
+lm_Karse_N <- lm(data = dw_subset %>%
+  filter(Eksperiment == "Karse normal"), formula = Vækst~delta_tid)
+lm_Karse_M <- lm(data = dw_subset %>%
+  filter(Eksperiment == "Karse mørke"), formula = Vækst~delta_tid)
+```
+
+```{r}
+lm_Karse_N_table <- get_regression_table(lm_Karse_N, digits = 3) %>% mutate(Eksperiment = "Karse normal")
+
+lm_Karse_M_table <- get_regression_table(lm_Karse_M, digits = 3) %>% mutate(Eksperiment = "Karse mørke")
+
+lm_rt <- rbind.data.frame(lm_Karse_N_table, lm_Karse_M_table) %>% filter(term == "delta_tid")
+
+lm_Karse_N_rs <- get_regression_summaries(lm_Karse_N, digits = 3) %>% mutate(Eksperiment = "Karse normal")
+
+lm_Karse_M_rs <- get_regression_summaries(lm_Karse_M, digits = 3) %>% mutate(Eksperiment = "Karse mørke")
+
+lm_rs <- rbind.data.frame(lm_Karse_N_rs, lm_Karse_M_rs)
+
+lm_stats <- cbind.data.frame(lm_rt %>% select(Eksperiment, slope = estimate, lower_ci, upper_ci), lm_rs %>% select(r_squared))
+```
+
+### Plot residualer
+```{r}
+
+```
 
 
 
