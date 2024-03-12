@@ -15,10 +15,12 @@ output:
 
 -   link til github
 -   billede af opstilling
--   version i bunden
 -   Højeste karse i hvert forsøg
 -   arduino kode
 -   billeder i github
+-   linear regression over vækst rate
+-   histogram over residualer
+-   agumenter farve/tema valg
 -   En masse lækker tekst
 
 
@@ -49,10 +51,65 @@ library(plotly)
 ```
 
 ### Indlæs data
-
+#### Karse naturligt lys
 ```{r}
-d <- read_delim("Data/KARSELOG.TXT", delim = "\t")
+Karse_N <- read_delim("Data/KARSELOG.TXT", delim = "\t")
+Karse_N <- Karse_N %>%
+  filter(DatoTid != "Dato")
+Karse_N$DatoTid <- as.POSIXct(Karse_N$DatoTid, format="%Y-%m-%dT%H:%M:%OS", tz = "UTC")
+Karse_N <- Karse_N[-(1:14),]
+
+rep_numbers <- rep(1:180, 10000)
+
+Karse_N <- Karse_N %>% 
+  filter(Afstand < 135) %>% 
+  mutate(indeks = rep_numbers[1:length(Afstand)]) %>%
+  filter(indeks == 1) %>%
+  filter(between(x = DatoTid, 
+                 left = as.POSIXct("2024-02-27 21:27:34"), 
+                 right = as.POSIXct("2024-03-05 13:49:39"))) %>%
+  mutate(Vækst = max(Afstand) - Afstand) %>%
+  select(-Afstand, -indeks)
+Karse_N <- pivot_longer(data = Karse_N, 
+                     cols = c("Vækst", "Lys", "Luftfugtighed", "Temperatur"),
+                     names_to = "variable",
+                     values_to = "value")
+head(Karse_N)
 ```
+#### Karse i mørke
+```{r}
+Karse_M <- read_delim("Data/KARSELOG_M.TXT", delim = "\t")
+Karse_M <- Karse_M %>%
+  filter(DatoTid != "Dato")
+Karse_M$DatoTid <- as.POSIXct(Karse_M$DatoTid, format="%Y-%m-%dT%H:%M:%OS", tz = "UTC")
+Karse_M <- Karse_M[-(1:14),]
+
+rep_numbers <- rep(1:180, 10000)
+
+Karse_M <- Karse_M %>% 
+  filter(Afstand < 135) %>% 
+  mutate(indeks = rep_numbers[1:length(Afstand)]) %>%
+  filter(indeks == 1) %>%
+  filter(between(x = DatoTid, 
+                 left = as.POSIXct("2024-02-27 21:27:34"), 
+                 right = as.POSIXct("2024-03-05 13:49:39"))) %>%
+  mutate(Vækst = max(Afstand) - Afstand) %>%
+  select(-Afstand, -indeks)
+Karse_M <- pivot_longer(data = Karse_M, 
+                     cols = c("Vækst", "Lys", "Luftfugtighed", "Temperatur"),
+                     names_to = "variable",
+                     values_to = "value")
+head(Karse_M)
+```
+
+
+#### Karse i kunstiglys
+```{r}
+Karse_M <- read_delim("Data/KARSELOG_M.TXT", delim = "\t")
+```
+
+
+
 
 ### Rå data
 
