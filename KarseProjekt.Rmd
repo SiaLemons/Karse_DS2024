@@ -53,7 +53,12 @@ library(plotly)
 ### Indlæs data
 #### Karse naturligt lys
 ```{r}
-Karse_N <- read_delim(file = "data/KARSELOG.TXT", delim = "\t") %>% 
+Karse_N <- read_delim(file = "data/KARSELOG.TXT", delim = "\t",
+                      col_types = list(DatoTid = "c",
+                                       Temperatur = "d",
+                                       Luftfugtighed = "d",
+                                       Afstand = "d",
+                                       Lys = "d")) %>% 
   filter(DatoTid != "Dato") %>% 
   filter(Afstand < 135)
 
@@ -70,11 +75,18 @@ Karse_N <- Karse_N %>%
   summarise(mean = mean(value)) %>% 
   ungroup() %>% 
   mutate(delta_tid = Dato_min - ymd_hms("2024-02-27 21:30:00"))
+
+head(Karse_N)
 ```
 
 #### Karse i mørke
 ```{r warning=FALSE}
-Karse_M <- read_delim(file = "data/KARSELOG_M.TXT", delim = "\t") %>% 
+Karse_M <- read_delim(file = "data/KARSELOG_M.TXT", delim = "\t",
+                      col_types = list(DatoTid = "c",
+                                       Temperatur = "d",
+                                       Luftfugtighed = "d",
+                                       Afstand = "d",
+                                       Lys = "d")) %>% 
   filter(DatoTid != "Dato")
 
 Karse_M <- Karse_M %>% 
@@ -96,12 +108,34 @@ head(Karse_M)
 
 #### Karse i kunstiglys
 ```{r}
-#Karse_M <- read_delim("Data/KARSELOG_M.TXT", delim = "\t")
+Karse_K <- read_delim(file = "data/KARSELOG_K.TXT", delim = "\t",
+                      col_types = list(DatoTid = "c",
+                                       Temperatur = "d",
+                                       Luftfugtighed = "d",
+                                       Afstand = "d",
+                                       Lys = "d")) %>% 
+  filter(DatoTid != "Dato")
+
+Karse_K <- Karse_K %>% 
+  filter(DatoTid != "2000-00-00T00:00:00") %>% 
+  mutate(Eksperiment = "Karse kunstig",
+         DatoTid = ymd_hms(DatoTid),
+         Dato_min = round_date(DatoTid, unit = "5 mins"),
+         Vækst = max(Afstand) - Afstand,
+         Lys_pct = (Lys - min(Lys))/(max(Lys) - min(Lys))*100) %>% 
+  select(Dato_min, Temperatur, Vækst, Lys_pct, Eksperiment) %>% 
+  pivot_longer(cols = c(Temperatur, Vækst, Lys_pct)) %>% 
+  group_by(Dato_min, name, Eksperiment) %>% 
+  summarise(mean = mean(value)) %>% 
+  ungroup() %>% 
+  mutate(delta_tid = Dato_min - ymd_hms("2024-03-11 15:40:00"))
+
+head(Karse_K)
 ```
 
 ## Kombiner data
 ```{r}
-d <- rbind.data.frame(Karse_N, Karse_M) %>% 
+d <- rbind.data.frame(Karse_N, Karse_M, Karse_K) %>% 
   mutate(delta_tid = as.numeric(delta_tid)/3600)
 ```
 
@@ -125,7 +159,8 @@ dw <- d %>%
 
 dw_subset <- dw %>% 
   filter(!(Eksperiment == "Karse normal" & (delta_tid < 66 | delta_tid > 90))) %>%
-  filter(!(Eksperiment == "Karse mørke" & (delta_tid < 66 | delta_tid > 90)))
+  filter(!(Eksperiment == "Karse mørke" & (delta_tid < 66 | delta_tid > 90))) %>% 
+  filter(!(Eksperiment == "Karse kunstig" & (delta_tid < 66 | delta_tid > 90)))
 
 p <- ggplot(dw, aes(x = delta_tid, y = Vækst, group = Eksperiment, color = Eksperiment)) +
   geom_point() +
@@ -142,6 +177,8 @@ lm_Karse_N <- lm(data = dw_subset %>%
   filter(Eksperiment == "Karse normal"), formula = Vækst~delta_tid)
 lm_Karse_M <- lm(data = dw_subset %>%
   filter(Eksperiment == "Karse mørke"), formula = Vækst~delta_tid)
+lm_Karse_K <- lm(data = dw_subset %>%
+  filter(Eksperiment == "Karse kunstig"), formula = Vækst~delta_tid)
 ```
 
 ```{r}
@@ -149,23 +186,44 @@ lm_Karse_N_table <- get_regression_table(lm_Karse_N, digits = 3) %>% mutate(Eksp
 
 lm_Karse_M_table <- get_regression_table(lm_Karse_M, digits = 3) %>% mutate(Eksperiment = "Karse mørke")
 
-lm_rt <- rbind.data.frame(lm_Karse_N_table, lm_Karse_M_table) %>% filter(term == "delta_tid")
+lm_Karse_K_table <- get_regression_table(lm_Karse_K, digits = 3) %>% mutate(Eksperiment = "Karse kunstig")
+
+lm_rt <- rbind.data.frame(lm_Karse_N_table, lm_Karse_M_table, lm_Karse_K_table) %>% filter(term == "delta_tid")
 
 lm_Karse_N_rs <- get_regression_summaries(lm_Karse_N, digits = 3) %>% mutate(Eksperiment = "Karse normal")
 
 lm_Karse_M_rs <- get_regression_summaries(lm_Karse_M, digits = 3) %>% mutate(Eksperiment = "Karse mørke")
 
-lm_rs <- rbind.data.frame(lm_Karse_N_rs, lm_Karse_M_rs)
+lm_Karse_K_rs <- get_regression_summaries(lm_Karse_K, digits = 3) %>% mutate(Eksperiment = "Karse kunstig")
+
+lm_rs <- rbind.data.frame(lm_Karse_N_rs, lm_Karse_M_rs, lm_Karse_K_rs)
 
 lm_stats <- cbind.data.frame(lm_rt %>% select(Eksperiment, slope = estimate, lower_ci, upper_ci), lm_rs %>% select(r_squared))
 ```
 
 ### Plot residualer
 ```{r}
+lm_karse_N_rp <- get_regression_points(lm_Karse_N) %>% mutate(experiment = "Karse normal")
+lm_karse_M_rp <- get_regression_points(lm_Karse_M) %>% mutate(experiment = "Karse mørke")
+lm_karse_K_rp <- get_regression_points(lm_Karse_K) %>% mutate(experiment = "Karse kunstig")
 
+rp <- rbind.data.frame(lm_karse_N_rp, lm_karse_M_rp, lm_karse_K_rp)
+
+ggplot(rp, aes(x=residual, group = experiment, fill = experiment)) +
+  geom_histogram() +
+  facet_wrap(~experiment)
 ```
 
+## Tabel med ekstraherede stats
+```{r}
+exp_stats <- dw %>% group_by(Eksperiment) %>% 
+  summarise(max_growth = round(max(Vækst, na.rm = T),2), 
+            mean_temp = round(mean(Temperatur, na.rm = T),1))
 
+stats <- left_join(lm_stats, exp_stats, by = "Eksperiment")
+
+tibble(stats)
+```
 
 
 
