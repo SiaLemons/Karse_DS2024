@@ -9,50 +9,80 @@ output:
     lightbox: true
     gallery: true
     highlight: tango
+    code_folding: show
 ---
 
 # Todo
 
--   billede af opstilling
--   Højeste karse i hvert forsøg
--   arduino kode
--   billeder i github
--   linear regression over vækst rate
--   histogram over residualer
+-   En lækker visualisering af jeres forsøgsdata og udregning af væksthastighed med jeres foretrukne metode. Højeste karse i hvert forsøg
+-   En lækker tabel der viser de essentielle parametre som i har uploaded til <https://karse.scipo.dk/>.
 -   agumenter farve/tema valg
 -   En masse lækker tekst
-
+-   (evt.) Beskrivelse af hvad der gik galt og hvordan det kunne laves bedre næste gang.
 
 # Projektdefinering
 
 Dette projekt er lavet i forbindelse med kurset `Data Science` og omhandler dataopsamling, exploratory data analyse og data kommunikation.
 
-## Basal informationer
-
 Her findes informationerne omkring gruppen der har lavet dette projekt
 
-```{r}
-#Gruppemedlemmer: Regitze og Silje
-#Studieretning: Biologi
-#Alias: Regilje
-```
+|                 |                  |
+|-----------------|------------------|
+| Gruppemedlemmer | Regitze og Silje |
+| Studieretning   | Biologi          |
+| Alias           | Regilje          |
+
+: Information om gruppe
 
 # Projekt
+
+## Omkring forsøg
+
+Formålet med projektet er at undersøge hvilke forhold der optimale for karses vækst. Vores forsøgs har følgende måleenheder tilsluttet: højde, lys intensitet, fugtighed og temperatur. Derudover var det også planen at have 4 LED dioder der indikerede om forholdene (temperatur og fugt) for karse vækst er optimale. Dette nåede vi desværre ikke at implementere helt.
+
+## Forsøgsopsætning {.tabset}
+
+### Udvendigt
+
+```{r, echo=FALSE, out.width="75%", fig.cap="**Figur 1:** Forsøgsopstilling set udefra.", fig.align='center'}
+knitr::include_graphics("Billeder/IMG_6005.jpeg")
+```
+
+### Indvendigt
+
+```{r, echo=FALSE, out.width="75%", fig.cap="**Figur 2:** Indevendige del af forsøgsopstillingen.", fig.align='center'}
+knitr::include_graphics("Billeder/IMG_6007.jpeg")
+```
+
+##  {.unnumbered}
+
+For at bestemme de bedste vækstforhold lavede vi tre delforsøg: 1) et forsøg hvor karsen fik naturligt lys (`Karse_N`), 2) et forsøg hvor karsen kun stod i mørke (`Karse_M`), 3) et forsøg hvor karsen fik konstant kunstigt lys (`Karse_K`).
 
 ## Opsætning af data
 
 ### Libraries
 
+Her ses alle de pakker der er nødvendig for at kunne repliklere koden fra dette projekt.
+
 ```{r message=FALSE}
 library(tidyverse)
 library(lubridate)
 library(moderndive)
-library(plotly)
+library(knitr)
+library(grid)
+library(ggthemes)
+library(scales)
 ```
 
 ### Indlæs data
+
+I alle forsøg, blev karsens vækst beregnet ud fra afstanden. Afstandsmåleren sad over karsen, og i takt med at karsen voksede, ville den målte afstand blive mindre. Væksten bestemmedes som (max afstand - afstand). Ved indlæsningen af data fra hvert forsøg bliver lys intensiteten `Lys` regnet om til procenter `Lys_pct`, dato og tidspunkt `DatoTid` bliver regent om til hvor lang tid der er gået fra eksperimentets start `delta_tid`, og væksten bliver regnet til en gennemsnits værdi for hver 5. minut.
+
 #### Karse naturligt lys
-```{r}
+
+Først indlæses data fra det første forsøg - forsøget hvor karsen fik naturligt lys. Dvs. at karsen fik lys om dagen, og mørke om natten. Her bliver der fjernet en tydeligt outlier hvor afstanden var længere end muligt ved vores forsøg.
+
+```{r message=FALSE, warning=FALSE}
 Karse_N <- read_delim(file = "data/KARSELOG.TXT", delim = "\t",
                       col_types = list(DatoTid = "c",
                                        Temperatur = "d",
@@ -76,11 +106,14 @@ Karse_N <- Karse_N %>%
   ungroup() %>% 
   mutate(delta_tid = Dato_min - ymd_hms("2024-02-27 21:30:00"))
 
-head(Karse_N)
+kable(head(Karse_N))
 ```
 
 #### Karse i mørke
-```{r warning=FALSE}
+
+Her efter indlæses data fra mørke forsøget hvor karsen blev holdt under konstant mørke. Vi valgte at sætte vores ind i et skab.
+
+```{r message=FALSE, warning=FALSE}
 Karse_M <- read_delim(file = "data/KARSELOG_M.TXT", delim = "\t",
                       col_types = list(DatoTid = "c",
                                        Temperatur = "d",
@@ -103,11 +136,14 @@ Karse_M <- Karse_M %>%
   ungroup() %>% 
   mutate(delta_tid = Dato_min - ymd_hms("2024-03-06 09:25:00"))
 
-head(Karse_M)
+kable(head(Karse_M))
 ```
 
-#### Karse i kunstiglys
-```{r}
+#### Karse i kunstig lys
+
+Her efter indlæses data fra forsøget hvor karsen blev groet under konstant kunstigt lys. Vi valgte at sætte vores ind i et skab sammen med en skrivebordlampe. Der ved bliver lysindfaldet holdt konstant da der ikke kommer lys fra andre kilder som evt. kunne svinge i intensitet.
+
+```{r message=FALSE, warning=FALSE}
 Karse_K <- read_delim(file = "data/KARSELOG_K.TXT", delim = "\t",
                       col_types = list(DatoTid = "c",
                                        Temperatur = "d",
@@ -130,47 +166,105 @@ Karse_K <- Karse_K %>%
   ungroup() %>% 
   mutate(delta_tid = Dato_min - ymd_hms("2024-03-11 15:40:00"))
 
-head(Karse_K)
+kable(head(Karse_K))
 ```
 
 ## Kombiner data
+
+For lettere at kunne arbejde med alt det indsamlede data bliver det samlet i en enkelt data frame.
+
 ```{r}
 d <- rbind.data.frame(Karse_N, Karse_M, Karse_K) %>% 
   mutate(delta_tid = as.numeric(delta_tid)/3600)
 ```
 
-
 ## Tema valg
 
+For at lave alle grafer visuelt sammenhængende defineres et fælles tema. Valget af vores tema blev gjord ud fra et professionelt udseende og sammenhæng med resten af rapporten. Vi blev inspireret af denne artiklen omkring professionelle grafer i ggplot2 [ggplot2 themes for publication ready plots](https://medium.com/analytics-vidhya/ggplot2-themes-for-publication-ready-plots-including-dark-themes-9cd65cc5a7e3) og omskrev deres kode til vores egne ønsker.
 
-## Overbliks
 ```{r}
-ggplot(d, aes(x = delta_tid, y = mean, color = Eksperiment)) +
+karseTema <- function(base_size = 14, base_family = "sans") {
+      theme_foundation(base_size = base_size, base_family = base_family) +
+          theme(plot.title = element_text(face = "bold",
+                                         size = rel(1.5), hjust = 0.5),
+               text = element_text(),
+               panel.background = element_rect(colour = NA),
+               plot.background = element_rect(colour = NA),
+               panel.border = element_rect(colour = NA),
+               axis.title = element_text(face = "bold", size = rel(1)),
+               axis.title.y = element_text(angle = 90, vjust = 2),
+               axis.title.x = element_text(vjust = -0.2),
+               axis.text = element_text(), 
+               axis.line.x = element_line(colour = "black"),
+               axis.line.y = element_line(colour = "black"),
+               axis.ticks = element_line(),
+               panel.grid.major = element_line(colour = "#f0f0f0"),
+               panel.grid.minor = element_blank(),
+               legend.key = element_rect(colour = NA),
+               legend.position = "bottom",
+               legend.direction = "horizontal",
+               legend.key.size = unit(0.2, "cm"),
+               legend.margin = margin(0, unit = "cm"),
+               legend.title = element_text(face = "italic"),
+               plot.margin = unit(c(10, 5, 5, 5), "mm"),
+               strip.background = element_rect(colour = "#f0f0f0", fill = "#f0f0f0"),
+               strip.text = element_text(face = "bold")
+       )
+      }
+
+scale_fill_karseTema <- function(...){
+  discrete_scale("color", "Karse", manual_pal(values = c("#5089d4","#fdb462","#7fc97f")), ...)
+}
+  
+scale_color_karseTema <- function(...){
+  discrete_scale("color", "Karse", manual_pal(values = c("#5089d4","#fdb462","#7fc97f")), ...)
+}
+```
+
+## Overbliksfigur
+
+```{r fig.height=8, warning=FALSE}
+dp <- d %>% 
+  mutate(name = fct_relevel(as.factor(name), c("Lys_pct", "Temperatur", "Vækst"))) %>%
+  mutate(name = recode(name, 
+                       "Vækst" = "Vækst [cm]", 
+                       "Lys_pct" = "Lysintensitet [%]", 
+                       "Temperatur" = "Temperature [°C]"))
+
+ggplot(dp, aes(x = delta_tid, y = mean, color = Eksperiment)) +
   geom_point() +
-  facet_wrap(~name, scales = "free_y")
+  facet_grid(rows = "name", scales = "free_y") +
+  labs(title = "Overbliksfigur af karse data",
+       subtitle = "Udført af Regitze C. Skibsted og Silje M. Lund",
+       caption = "Karsen er groet udenfor et lab, så må gerne spises.\nAalborg Universitet, forår 2024") +
+  xlab("Tid (h)") +
+  ylab("Værdi") +
+  karseTema() +
+  scale_color_karseTema()
 ```
 
 ## Lineær regression
-### Ved brug af ggplot
 
-```{r}
+### Lineær regression ved brug af ggplot
+
+```{r fig.height=6, warning=FALSE}
 dw <- d %>% 
   pivot_wider(names_from = name, values_from = mean)
 
 dw_subset <- dw %>% 
-  filter(!(Eksperiment == "Karse normal" & (delta_tid < 66 | delta_tid > 90))) %>%
-  filter(!(Eksperiment == "Karse mørke" & (delta_tid < 66 | delta_tid > 90))) %>% 
-  filter(!(Eksperiment == "Karse kunstig" & (delta_tid < 66 | delta_tid > 90)))
+  filter(!(Eksperiment == "Karse normal" & (delta_tid < 50 | delta_tid > 74))) %>%
+  filter(!(Eksperiment == "Karse mørke" & (delta_tid < 50 | delta_tid > 74))) %>% 
+  filter(!(Eksperiment == "Karse kunstig" & (delta_tid < 50 | delta_tid > 74)))
 
-p <- ggplot(dw, aes(x = delta_tid, y = Vækst, group = Eksperiment, color = Eksperiment)) +
+ggplot(dw, aes(x = delta_tid, y = Vækst, group = Eksperiment, color = Eksperiment)) +
   geom_point() +
   geom_smooth(data = dw_subset, method = "lm", color = "black", linewidth = 1, se = F) +
-  facet_wrap(~Eksperiment, ncol = 1)
-
-p
+  facet_grid(rows = "Eksperiment", scales = "free_y") +
+  karseTema() +
+  scale_color_karseTema()
 ```
 
-### Ved brug af `lm()`
+### Lineær regression ved brug af `lm()`
 
 ```{r}
 lm_Karse_N <- lm(data = dw_subset %>%
@@ -183,25 +277,20 @@ lm_Karse_K <- lm(data = dw_subset %>%
 
 ```{r}
 lm_Karse_N_table <- get_regression_table(lm_Karse_N, digits = 3) %>% mutate(Eksperiment = "Karse normal")
-
 lm_Karse_M_table <- get_regression_table(lm_Karse_M, digits = 3) %>% mutate(Eksperiment = "Karse mørke")
-
 lm_Karse_K_table <- get_regression_table(lm_Karse_K, digits = 3) %>% mutate(Eksperiment = "Karse kunstig")
-
 lm_rt <- rbind.data.frame(lm_Karse_N_table, lm_Karse_M_table, lm_Karse_K_table) %>% filter(term == "delta_tid")
 
 lm_Karse_N_rs <- get_regression_summaries(lm_Karse_N, digits = 3) %>% mutate(Eksperiment = "Karse normal")
-
 lm_Karse_M_rs <- get_regression_summaries(lm_Karse_M, digits = 3) %>% mutate(Eksperiment = "Karse mørke")
-
 lm_Karse_K_rs <- get_regression_summaries(lm_Karse_K, digits = 3) %>% mutate(Eksperiment = "Karse kunstig")
-
 lm_rs <- rbind.data.frame(lm_Karse_N_rs, lm_Karse_M_rs, lm_Karse_K_rs)
 
 lm_stats <- cbind.data.frame(lm_rt %>% select(Eksperiment, slope = estimate, lower_ci, upper_ci), lm_rs %>% select(r_squared))
 ```
 
 ### Plot residualer
+
 ```{r}
 lm_karse_N_rp <- get_regression_points(lm_Karse_N) %>% mutate(experiment = "Karse normal")
 lm_karse_M_rp <- get_regression_points(lm_Karse_M) %>% mutate(experiment = "Karse mørke")
@@ -210,11 +299,14 @@ lm_karse_K_rp <- get_regression_points(lm_Karse_K) %>% mutate(experiment = "Kars
 rp <- rbind.data.frame(lm_karse_N_rp, lm_karse_M_rp, lm_karse_K_rp)
 
 ggplot(rp, aes(x=residual, group = experiment, fill = experiment)) +
-  geom_histogram() +
-  facet_wrap(~experiment)
+  geom_histogram(bins = 30) +
+  facet_wrap(~experiment) +
+  karseTema() +
+  scale_fill_karseTema()
 ```
 
 ## Tabel med ekstraherede stats
+
 ```{r}
 exp_stats <- dw %>% group_by(Eksperiment) %>% 
   summarise(max_growth = round(max(Vækst, na.rm = T),2), 
@@ -222,14 +314,17 @@ exp_stats <- dw %>% group_by(Eksperiment) %>%
 
 stats <- left_join(lm_stats, exp_stats, by = "Eksperiment")
 
-tibble(stats)
+kable(stats)
 ```
-
-
 
 # Arduino kode
 
 [GitHub](https://github.com/SiaLemons/Karse_DS2024)
+
+```{r}
+readLines(con = "Karse_maaling/Karse_maaling.ino") %>%
+  cat(sep = '\n')
+```
 
 # Informations om versioner
 

@@ -24,18 +24,18 @@ RtcDS1302<ThreeWire> Rtc(myWire);  // Laver en variabel, Rtc
 // LCD setup
 LiquidCrystal_I2C lcd(0x27, 16, 2);  // Specificere typen af LCD, 16 i bredde og 2 i højde
 
-// Find ud af hvad de her gør
+// Definer pins
 int sensorValue = 0;
 int digiPin = 2;
 float val;
 
-// bruges ikke lige nu!!!
-// lamper
-//int LedTempH = 9;
-//int LedTempL = 8;
-//int LedHuH = 6;
-//int LedHuL = 3;
-
+/* Nåede ikke
+//lamper
+int LedTempH = 9;
+int LedTempL = 8;
+int LedHuH = 6;
+int LedHuL = 3;
+*/
 
 
 void setup() {
@@ -82,17 +82,15 @@ void setup() {
   // Laver kolonner og \t afstande mellem så filen er lettere at uploade til R
   myFile = SD.open("KarseLog.txt", FILE_WRITE);
   if (myFile) {
-    myFile.print("Dato");
+    myFile.print("DatoTid");
     myFile.print("\t");
-    myFile.print("Tid");
+    myFile.print("Temperatur");
     myFile.print("\t");
-    myFile.print("Temperatur (C)");
+    myFile.print("Luftfugtighed");
     myFile.print("\t");
-    myFile.print("Luftfugtighed (%)");
+    myFile.print("Afstand");
     myFile.print("\t");
-    myFile.print("Afstand (mm)");
-    myFile.print("\t");
-    myFile.print("Lys intensitet (0-100)");
+    myFile.print("Lys");
     myFile.print("\n");
     myFile.close();
   } else {
