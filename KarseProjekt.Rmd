@@ -1,7 +1,7 @@
 ---
 title: "Data Science - Karse projekt"
-author: "Silje M. Lund og Regitze C. Skibsted"
-date: "2024-02-26"
+author: "Regitze C. Skibsted og Silje M. Lund"
+date: "2024-03-22"
 output: 
   rmdformats::robobook:
     self_contained: true
@@ -12,17 +12,9 @@ output:
     code_folding: show
 ---
 
-# Todo
-
--   En lækker visualisering af jeres forsøgsdata og udregning af væksthastighed med jeres foretrukne metode. Højeste karse i hvert forsøg
--   En lækker tabel der viser de essentielle parametre som i har uploaded til <https://karse.scipo.dk/>.
--   agumenter farve/tema valg
--   En masse lækker tekst
--   (evt.) Beskrivelse af hvad der gik galt og hvordan det kunne laves bedre næste gang.
-
 # Projektdefinering
 
-Dette projekt er lavet i forbindelse med kurset `Data Science` og omhandler dataopsamling, exploratory data analyse og data kommunikation.
+Dette projekt er lavet i forbindelse med kurset `Data Science` og omhandler dataopsamling, exploratory dataanalyse og datakommunikation.
 
 Her findes informationerne omkring gruppen der har lavet dette projekt
 
@@ -38,7 +30,7 @@ Her findes informationerne omkring gruppen der har lavet dette projekt
 
 ## Omkring forsøg
 
-Formålet med projektet er at undersøge hvilke forhold der optimale for karses vækst. Vores forsøgs har følgende måleenheder tilsluttet: højde, lys intensitet, fugtighed og temperatur. Derudover var det også planen at have 4 LED dioder der indikerede om forholdene (temperatur og fugt) for karse vækst er optimale. Dette nåede vi desværre ikke at implementere helt.
+Formålet med projektet er at undersøge hvilke forhold der optimale for karses vækst. Vores forsøg har følgende måleenheder tilsluttet: afstand, lys intensitet, fugtighed og temperatur. Derudover var det også planen at have 4 LED dioder der indikerede om forholdene (temperatur og fugt) for karse vækst er optimale. Dette nåede vi desværre ikke at implementere helt.
 
 ## Forsøgsopsætning {.tabset}
 
@@ -76,7 +68,7 @@ library(scales)
 
 ### Indlæs data
 
-I alle forsøg, blev karsens vækst beregnet ud fra afstanden. Afstandsmåleren sad over karsen, og i takt med at karsen voksede, ville den målte afstand blive mindre. Væksten bestemmedes som (max afstand - afstand). Ved indlæsningen af data fra hvert forsøg bliver lys intensiteten `Lys` regnet om til procenter `Lys_pct`, dato og tidspunkt `DatoTid` bliver regent om til hvor lang tid der er gået fra eksperimentets start `delta_tid`, og væksten bliver regnet til en gennemsnits værdi for hver 5. minut.
+I alle forsøg, blev karsens vækst beregnet ud fra afstanden. Afstandsmåleren sad over karsen, og i takt med at karsen voksede, ville den målte afstand blive mindre. Væksten bestemmedes som `max(Afstand) - Afstand`. Ved indlæsningen af data fra hvert forsøg bliver lys intensiteten `Lys` regnet om til procenter `Lys_pct`, dato og tidspunkt `DatoTid` bliver regnet om til hvor lang tid der er gået fra eksperimentets start `delta_tid`, og væksten bliver regnet til en gennemsnits værdi for hver 5. minut.
 
 #### Karse naturligt lys
 
@@ -111,7 +103,7 @@ kable(head(Karse_N))
 
 #### Karse i mørke
 
-Her efter indlæses data fra mørke forsøget hvor karsen blev holdt under konstant mørke. Vi valgte at sætte vores ind i et skab.
+Herefter indlæses data fra mørke forsøget hvor karsen blev holdt under konstant mørke. Vi valgte at sætte vores ind i et skab.
 
 ```{r message=FALSE, warning=FALSE}
 Karse_M <- read_delim(file = "data/KARSELOG_M.TXT", delim = "\t",
@@ -141,7 +133,7 @@ kable(head(Karse_M))
 
 #### Karse i kunstig lys
 
-Her efter indlæses data fra forsøget hvor karsen blev groet under konstant kunstigt lys. Vi valgte at sætte vores ind i et skab sammen med en skrivebordlampe. Der ved bliver lysindfaldet holdt konstant da der ikke kommer lys fra andre kilder som evt. kunne svinge i intensitet.
+Herefter indlæses data fra forsøget hvor karsen blev groet under konstant kunstigt lys. Vi valgte at sætte karsen ind i et skab sammen med en skrivebordlampe. Der ved bliver lysindfaldet holdt konstant da der ikke kommer lys fra andre kilder som evt. kunne svinge i intensitet.
 
 ```{r message=FALSE, warning=FALSE}
 Karse_K <- read_delim(file = "data/KARSELOG_K.TXT", delim = "\t",
@@ -213,7 +205,7 @@ karseTema <- function(base_size = 14, base_family = "sans") {
       }
 
 scale_fill_karseTema <- function(...){
-  discrete_scale("color", "Karse", manual_pal(values = c("#5089d4","#fdb462","#7fc97f")), ...)
+  discrete_scale("fill", "Karse", manual_pal(values = c("#5089d4","#fdb462","#7fc97f")), ...)
 }
   
 scale_color_karseTema <- function(...){
@@ -222,6 +214,7 @@ scale_color_karseTema <- function(...){
 ```
 
 ## Overbliksfigur
+De tre karsefosøg samles i en figur, så lysintensiteten, temperaturen og væskten kan sammenlignes. 
 
 ```{r fig.height=8, warning=FALSE}
 dp <- d %>% 
@@ -244,10 +237,9 @@ ggplot(dp, aes(x = delta_tid, y = mean, color = Eksperiment)) +
 ```
 
 ## Lineær regression
+Vi valgte at lave en regression over det samme vindue i alle grafer mellem 50 og 74 timer efter forsøgets start. Dette valg skyldes at det var et tidsrum hvor der skete vækst i alle eksperimenter og det var indenfor det data vi havde for eksperimentet med kunstigt lys.
 
-### Lineær regression ved brug af ggplot
-
-```{r fig.height=6, warning=FALSE}
+```{r fig.height=7, warning=FALSE}
 dw <- d %>% 
   pivot_wider(names_from = name, values_from = mean)
 
@@ -255,17 +247,11 @@ dw_subset <- dw %>%
   filter(!(Eksperiment == "Karse normal" & (delta_tid < 50 | delta_tid > 74))) %>%
   filter(!(Eksperiment == "Karse mørke" & (delta_tid < 50 | delta_tid > 74))) %>% 
   filter(!(Eksperiment == "Karse kunstig" & (delta_tid < 50 | delta_tid > 74)))
-
-ggplot(dw, aes(x = delta_tid, y = Vækst, group = Eksperiment, color = Eksperiment)) +
-  geom_point() +
-  geom_smooth(data = dw_subset, method = "lm", color = "black", linewidth = 1, se = F) +
-  facet_grid(rows = "Eksperiment", scales = "free_y") +
-  karseTema() +
-  scale_color_karseTema()
 ```
 
 ### Lineær regression ved brug af `lm()`
 
+Man kan ikke aflæse hældinger fra den ’lineær regression ggplot’. Derfor udarbejdes der også en lineær regression vha. `lm` først som vi kan bruge til at have mere information til vores grafer.
 ```{r}
 lm_Karse_N <- lm(data = dw_subset %>%
   filter(Eksperiment == "Karse normal"), formula = Vækst~delta_tid)
@@ -290,8 +276,8 @@ lm_stats <- cbind.data.frame(lm_rt %>% select(Eksperiment, slope = estimate, low
 ```
 
 ### Plot residualer
-
-```{r}
+Fra `lm` har vi beregnet residualer. 
+```{r fig.height=6}
 lm_karse_N_rp <- get_regression_points(lm_Karse_N) %>% mutate(experiment = "Karse normal")
 lm_karse_M_rp <- get_regression_points(lm_Karse_M) %>% mutate(experiment = "Karse mørke")
 lm_karse_K_rp <- get_regression_points(lm_Karse_K) %>% mutate(experiment = "Karse kunstig")
@@ -300,12 +286,38 @@ rp <- rbind.data.frame(lm_karse_N_rp, lm_karse_M_rp, lm_karse_K_rp)
 
 ggplot(rp, aes(x=residual, group = experiment, fill = experiment)) +
   geom_histogram(bins = 30) +
+  labs(title = "Residualer",
+       subtitle = "Udført af Regitze C. Skibsted og Silje M. Lund",
+       caption = "Karsen er groet udenfor et lab, så må gerne spises.\nAalborg Universitet, forår 2024") +
+  xlab("Residualer") +
+  ylab("Antal obs.") +
   facet_wrap(~experiment) +
   karseTema() +
   scale_fill_karseTema()
 ```
 
-## Tabel med ekstraherede stats
+### Lineær regression ved brug af ggplot
+Ud fra vækstkurven beregnede vi en lineær regression på vækstkurven, for at sammenligne væksten.
+`Karse_K` havde færre datapunkter end de andre forsøg, fordi der var problemer med uret. Vi brugte det samme subset som tidligere.
+```{r fig.height=7}
+ggplot(dw, aes(x = delta_tid, y = Vækst, group = Eksperiment, color = Eksperiment)) +
+  geom_point() +
+  geom_smooth(data = dw_subset, method = "lm", color = "black", linewidth = 1, se = F) +
+  labs(title = "Lineær regression ved brug af ggplot",
+       subtitle = "Udført af Regitze C. Skibsted og Silje M. Lund",
+       caption = "Karsen er groet udenfor et lab, så må gerne spises.\nAalborg Universitet, forår 2024") +
+  xlab("Tid (h)") +
+  ylab("Vækst (mm)") +
+  facet_grid(rows = "Eksperiment", scales = "free_y") +
+  geom_text(data = lm_stats, aes(x = 0.5, y = 40, label = paste("Vækstrate:", slope*10, "mm/time, ", r_squared, " r^2")),
+              hjust = 0, color = "grey50") +
+  karseTema() +
+  scale_color_karseTema()
+```
+
+
+## Tabel med ekstraheret statestikker
+Neden under ses en tabel med statistikker fra den lineær regression.
 
 ```{r}
 exp_stats <- dw %>% group_by(Eksperiment) %>% 
@@ -314,12 +326,33 @@ exp_stats <- dw %>% group_by(Eksperiment) %>%
 
 stats <- left_join(lm_stats, exp_stats, by = "Eksperiment")
 
-kable(stats)
+kable(stats, caption = "Lineær regression - Statestikker")
 ```
+
+Derudover finder vi også den maksimale højde som karsen har groet i de forskellige eksperimenter.
+
+```{r}
+max <- d %>% 
+  group_by(Eksperiment) %>% 
+  summarise(max(mean))
+
+kable(max, caption = "Max karse højde")
+```
+
+
+## Metodiske overvejelser
+
+I dette projekt havde vi desværre flere problemer med de forskellige sensorer og mange tidspunkter hvor der ikke blev gemt data. Dette har givet store huller. Ved kunstigt lys ser man at der ikke er særligt mange resultater hvilket skyldes nogen af disse problemer.
+Vores lys sensor virkede kun ved det kunstige lys forsøg og ved de andre blev der registreret en næsten konstant værdi på 30. 
+
+Hvis vi skulle lave dette projekt en gang til ville vi sikre os at alle sensorer fungere og vi skulle finde en måde så chancen for at miste data blev mindsket.
+
+Vi ville gerne havde haft lys dioder på der viste når temperatur og fugt var optimal for karse vækst. Det nåede vi dog ikke at få til at virke ordenligt så det ville vi også inddrage en anden gang.
+
 
 # Arduino kode
 
-[GitHub](https://github.com/SiaLemons/Karse_DS2024)
+Nedenunder ses vores arduino kode hvilket også kan findes på [GitHub](https://github.com/SiaLemons/Karse_DS2024). På GitHub kan resten af projektet også findes.
 
 ```{r}
 readLines(con = "Karse_maaling/Karse_maaling.ino") %>%
